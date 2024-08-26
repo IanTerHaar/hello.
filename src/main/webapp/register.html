@@ -8,9 +8,23 @@
     <link rel="icon" href="assets/images/favIcon_raw.png" type="images/png">
 </head>
 <body>
-<div class="login-container">
+<div class="register-container">
     <h1>hello.</h1>
-    <form action="loginServlet" method="post">
+    <form action="RegistrationServlet" method="post">
+        <!-- Error message display using JavaScript -->
+        <div id="error-message" style="color:red;"></div>
+        <script>
+            // Parse the query parameters from the URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const error = urlParams.get('error');
+
+            // Check the error parameter and display the appropriate message
+            if (error === 'username_taken') {
+                document.getElementById('error-message').textContent = 'Username is already taken. Please choose another one.';
+            } else if (error === 'registration_failed') {
+                document.getElementById('error-message').textContent = 'Registration failed. Please try again.';
+            }
+        </script>
         <div class="input-group">
             <label for="name">Name</label>
             <input type="text" id="name" name="name" required>
