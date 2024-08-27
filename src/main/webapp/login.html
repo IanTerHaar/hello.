@@ -11,6 +11,20 @@
 <div class="login-container">
     <h1>hello.</h1>
     <form action="loginServlet" method="post">
+        <!-- Error message display using JavaScript -->
+        <div id="error-message" style="color:#6592fd;"></div>
+        <script>
+            // Parse the query parameters from the URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const error = urlParams.get('error');
+
+            // Check the error parameter and display the appropriate message
+            if (error === 'invalid') {
+                document.getElementById('error-message').textContent = 'Invalid username or password. Please try again.';
+            } else if (error === 'sql') {
+                document.getElementById('error-message').textContent = 'An error occurred. Please try again later.';
+            }
+        </script>
         <div class="input-group">
             <label for="username">Username</label>
             <input type="text" id="username" name="username" required>
