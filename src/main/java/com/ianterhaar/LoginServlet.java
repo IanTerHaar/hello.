@@ -50,13 +50,14 @@ public class LoginServlet extends HttpServlet {
 
                             // Store the name in session
                             HttpSession session = request.getSession();
-                            session.setAttribute("userName", name);
+                            session.setAttribute("username", username);
 
                             // Redirect to home page
-                            response.sendRedirect("home.html?userName=" + URLEncoder.encode(name, "UTF-8"));
+                            response.sendRedirect("home");
 
                         } else {
                             // Login failed
+                            System.out.println("Login failed: Invalid credentials");
                             response.sendRedirect("login.html?error=invalid");
                         }
                     }
