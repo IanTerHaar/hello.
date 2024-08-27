@@ -5,7 +5,11 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -25,25 +29,59 @@ public class LoginServlet extends HttpServlet {
         String username = request.getParameter("username");
         String password = request.getParameter("password");
 
-        try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD)) {
-            String query = "SELECT * FROM users WHERE username = ? AND password = ?";
-            try (PreparedStatement statement = connection.prepareStatement(query)) {
-                statement.setString(1, username);
-                statement.setString(2, password);
+        // Hash the password entered by the user before comparing with the database
+        String hashedPassword = hashPassword(password);
 
-                try (ResultSet resultSet = statement.executeQuery()) {
-                    if (resultSet.next()) {
-                        // Login successful
-                        response.sendRedirect("home.html"); // Redirect to a home page or dashboard
-                    } else {
-                        // Login failed
-                        response.sendRedirect("login.html?error=1"); // Redirect back to login with an error
+        try {
+            // Load the PostgreSQL JDBC driver
+            Class.forName("org.postgresql.Driver");
+
+            // Establish the connection
+            try (Connection connection = DriverManager.getConnection(URL, USER, PASSWORD)) {
+                String query = "SELECT name FROM users WHERE username = ? AND password = ?";
+                try (PreparedStatement statement = connection.prepareStatement(query)) {
+                    statement.setString(1, username);
+                    statement.setString(2, hashedPassword);
+
+                    try (ResultSet resultSet = statement.executeQuery()) {
+                        if (resultSet.next()) {
+                            // Login successful, retrieve the user's name
+                            String name = resultSet.getString("name");
+
+                            // Store the name in session
+                            HttpSession session = request.getSession();
+                            session.setAttribute("userName", name);
+
+                            // Redirect to home page
+                            response.sendRedirect("home.html?userName=" + URLEncoder.encode(name, "UTF-8"));
+
+                        } else {
+                            // Login failed
+                            response.sendRedirect("login.html?error=invalid");
+                        }
                     }
                 }
             }
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace(); // Driver class not found
+            response.sendRedirect("login.html?error=driver_not_found");
         } catch (SQLException e) {
-            e.printStackTrace();
-            response.sendRedirect("login.html?error=2"); // Redirect back to login with an error
+            e.printStackTrace(); // SQL error
+            response.sendRedirect("login.html?error=sql_error");
+        }
+    }
+
+    private String hashPassword(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hashedPassword = md.digest(password.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashedPassword) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
         }
     }
 }
