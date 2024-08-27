@@ -15,10 +15,8 @@ public class HomeServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         HttpSession session = request.getSession(false);
         if (session != null && session.getAttribute("username") != null) {
-            response.setContentType("text/html");
-            response.getWriter().println("<h1>Welcome " + session.getAttribute("username") + "</h1>");
-            response.getWriter().println("<a href='conversations'>Conversations</a><br>");
-            response.getWriter().println("<a href='camera.html'>Camera</a>");
+            // Forward to ConversationsServlet to get the conversations
+            request.getRequestDispatcher("/conversations").forward(request, response);
         } else {
             response.sendRedirect("login.html");
         }
