@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>hello.</title>
+    <title>Chat Application</title>
     <link rel="stylesheet" href="assets/styles/home.css">
     <link rel="icon" href="assets/images/favIcon_raw.png" type="image/png">
 </head>
@@ -19,22 +19,17 @@
     <div class="chat-content">
         <aside class="sidebar">
             <div class="conversation-list">
-
-                <c:set var="conversationList" value="${conversations}" />
-
                 <c:if test="${not empty conversations}">
                     <c:forEach var="conversation" items="${conversations}">
-                        <div class="conversation-item">${conversation}</div>
+                        <!-- Assign data attributes to pass conversation details -->
+                        <div class="conversation-item" data-username="${conversation}" onclick="selectConversation(this)">
+                                ${conversation}
+                        </div>
                     </c:forEach>
                 </c:if>
                 <c:if test="${empty conversations}">
                     <p>No conversations found.</p>
                 </c:if>
-
-<%--            <c:forEach var="conversation" items="${['Alice', 'Bob', 'Charlie']}">--%>
-<%--                <div class="conversation-item">${conversation}</div>--%>
-<%--            </c:forEach>--%>
-
             </div>
         </aside>
 
@@ -45,6 +40,18 @@
 
             <div class="chat-window" id="chatWindow">
                 <!-- Chat messages will be dynamically inserted here -->
+                <c:if test="${not empty messages}">
+                    <c:forEach var="message" items="${messages}">
+                        <div class="message">
+                            <span class="username">${message.username}:</span>
+                            <span class="text">${message.message}</span>
+                            <span class="timestamp">${message.timestamp}</span>
+                        </div>
+                    </c:forEach>
+                </c:if>
+                <c:if test="${empty messages}">
+                    <p>No messages found. Start a conversation.</p>
+                </c:if>
             </div>
 
             <div class="message-input">
@@ -55,33 +62,7 @@
     </div>
 </div>
 
-<script>
-    let socket = new WebSocket("ws://localhost:8080/chat-app/chat");
+    <script src="js/chat.js"></script>
 
-    socket.onmessage = function(event) {
-        let chatWindow = document.getElementById("chatWindow");
-        let message = document.createElement("div");
-        message.className = 'message received';
-        message.innerHTML = `<p>${event.data}</p><span class="sender">Other</span>`;
-        chatWindow.appendChild(message);
-    };
-
-    function sendMessage() {
-        const messageInput = document.getElementById('messageInput');
-        const messageText = messageInput.value;
-        const username = '<%= session.getAttribute("userName") %>';
-
-        if (messageText.trim()) {
-            const chatWindow = document.getElementById('chatWindow');
-            const newMessage = document.createElement('div');
-            newMessage.className = 'message sent';
-            newMessage.innerHTML = `<p>${messageText}</p><span class="sender">${username}</span>`;
-            chatWindow.appendChild(newMessage);
-            messageInput.value = ''; // Clear input field
-
-            socket.send(messageText);
-        }
-    }
-</script>
 </body>
 </html>
