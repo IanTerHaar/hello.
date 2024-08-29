@@ -82,7 +82,7 @@ public class ChatServlet extends HttpServlet {
                 }
 
                 // Fetch chat history
-                String messagesQuery = "SELECT sender_id, message, timestamp FROM messages WHERE conversation_id = ?";
+                String messagesQuery = "SELECT sender_id, message, created_at FROM messages WHERE conversation_id = ?";
                 PreparedStatement messagesStmt = connection.prepareStatement(messagesQuery);
                 messagesStmt.setInt(1, conversationId);
                 ResultSet messagesRs = messagesStmt.executeQuery();
@@ -91,7 +91,7 @@ public class ChatServlet extends HttpServlet {
                 while (messagesRs.next()) {
                     String senderId = messagesRs.getString("sender_id");
                     String messageContent = messagesRs.getString("message");
-                    Timestamp timestamp = messagesRs.getTimestamp("timestamp");
+                    Timestamp timestamp = messagesRs.getTimestamp("created_at");
                     messages.add(new Message(senderId, messageContent, timestamp));
                 }
 

@@ -1,63 +1,64 @@
 package com.ianterhaar;
 
 import javax.websocket.*;
-import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
-import java.sql.*;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import javax.websocket.server.PathParam;
+import java.util.logging.Logger;
+import java.util.logging.FileHandler;
+import java.util.logging.SimpleFormatter;
 
 @ServerEndpoint("/chat/{username}")
 public class ChatEndpoint {
 
-    private static Set<Session> sessions = Collections.synchronizedSet(new HashSet<>());
+    private static final Logger logger = Logger.getLogger(ChatEndpoint.class.getName());
+
+    static {
+        try {
+            FileHandler fileHandler = new FileHandler("websocket.log", true);
+            fileHandler.setFormatter(new SimpleFormatter());
+            logger.addHandler(fileHandler);
+            logger.setLevel(java.util.logging.Level.ALL);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     @OnOpen
     public void onOpen(Session session, @PathParam("username") String username) {
-        sessions.add(session);
         session.getUserProperties().put("username", username);
+        logger.info("WebSocket opened for user: " + username);
     }
 
     @OnMessage
     public void onMessage(String message, Session session) {
-        String username = (String) session.getUserProperties().get("username");
-
-        // Broadcast the message to all connected clients
-        sessions.forEach(s -> {
-            try {
-                s.getBasicRemote().sendText(username + ": " + message);
-            } catch (Exception e) {
-                e.printStackTrace();
+        logger.info("Received message: " + message);
+        try {
+            // Broadcast the message to all connected sessions
+            for (Session s : session.getOpenSessions()) {
+                if (s.isOpen()) {
+                    s.getBasicRemote().sendText(message);
+                }
             }
-        });
-
-        // Save message to database
-        try (Connection connection = getConnection()) {
-            String insertMessageQuery = "INSERT INTO messages (conversation_id, sender_id, message, timestamp) VALUES ((SELECT id FROM conversations WHERE (sender_id = (SELECT id FROM users WHERE username = ?) AND receiver_id = (SELECT id FROM users WHERE username = ?)) OR (sender_id = (SELECT id FROM users WHERE username = ?) AND receiver_id = (SELECT id FROM users WHERE username = ?))), (SELECT id FROM users WHERE username = ?), ?, CURRENT_TIMESTAMP)";
-            PreparedStatement insertMessageStmt = connection.prepareStatement(insertMessageQuery);
-            insertMessageStmt.setString(1, username);
-            insertMessageStmt.setString(2, username);  // Adjust as needed for receiver
-            insertMessageStmt.setString(3, username);
-            insertMessageStmt.setString(4, username);  // Adjust as needed for receiver
-            insertMessageStmt.setString(5, username);
-            insertMessageStmt.setString(6, message);
-            insertMessageStmt.executeUpdate();
-            insertMessageStmt.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            logger.severe("Error sending message: " + e.getMessage());
         }
     }
 
     @OnClose
     public void onClose(Session session) {
-        sessions.remove(session);
+        String username = (String) session.getUserProperties().get("username");
+        if (username != null) {
+            logger.info("WebSocket closed for user: " + username);
+        }
     }
 
-    private Connection getConnection() throws SQLException {
-        String url = "jdbc:postgresql://localhost:5432/postgres";
-        String username = "postgres";
-        String password = "03Maelks03";
-        return DriverManager.getConnection(url, username, password);
+    @OnError
+    public void onError(Session session, Throwable throwable) {
+        String username = (String) session.getUserProperties().get("username");
+        if (username != null) {
+            logger.severe("WebSocket error for user " + username + ": " + throwable.getMessage());
+        } else {
+            logger.severe("WebSocket error: " + throwable.getMessage());
+        }
     }
 }
