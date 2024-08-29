@@ -51,9 +51,13 @@ public class ChatServlet extends HttpServlet {
             try (Connection connection = getConnection()) {
                 logger.info("Database connection established.");
 
-                String messagesQuery = "SELECT u.username, m.message, m.timestamp FROM messages m " +
+                // Adjusted SQL query to use aliases for clarity
+                String messagesQuery = "SELECT u.username AS sender_username, m.message AS message_content, m.timestamp AS message_timestamp " +
+                        "FROM messages m " +
                         "JOIN users u ON m.sender_id = u.id " +
-                        "WHERE m.conversation_id = ? ORDER BY m.timestamp ASC";
+                        "WHERE m.conversation_id = ? " +
+                        "ORDER BY m.timestamp ASC";
+
                 PreparedStatement messagesStmt = connection.prepareStatement(messagesQuery);
                 messagesStmt.setInt(1, Integer.parseInt(conversationId));
                 ResultSet messagesRs = messagesStmt.executeQuery();
@@ -61,9 +65,10 @@ public class ChatServlet extends HttpServlet {
                 List<Message> messages = new ArrayList<>();
                 while (messagesRs.next()) {
                     Message message = new Message(
-                            messagesRs.getString("username"),
-                            messagesRs.getString("message"),
-                            messagesRs.getTimestamp("timestamp")
+                            Integer.parseInt(conversationId),
+                            messagesRs.getString("sender_username"),
+                            messagesRs.getString("message_content"),
+                            messagesRs.getTimestamp("message_timestamp")
                     );
                     messages.add(message);
                 }
@@ -90,7 +95,7 @@ public class ChatServlet extends HttpServlet {
         for (int i = 0; i < messages.size(); i++) {
             Message msg = messages.get(i);
             json.append("{")
-                    .append("\"sender\":\"").append(msg.getUsername()).append("\",")
+                    .append("\"sender\":\"").append(msg.getSender()).append("\",")
                     .append("\"message\":\"").append(msg.getMessage()).append("\",")
                     .append("\"timestamp\":\"").append(msg.getTimestamp()).append("\"}")
                     .append(i < messages.size() - 1 ? "," : "");

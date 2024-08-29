@@ -1,5 +1,6 @@
 // Get the username from the JSP-provided global variable
 const username = encodeURIComponent(chatUsername);
+let currentConversationId = null; // Declare the variable globally
 
 // Establish WebSocket connection
 let socket = new WebSocket(`ws://${window.location.host}/chat/${username}`);
@@ -31,20 +32,24 @@ function sendMessage() {
     const messageInput = document.getElementById('messageInput');
     const messageText = messageInput.value;
 
-    if (messageText.trim()) {
+    if (messageText.trim() && currentConversationId !== null) { // Check if it's set
         let messageData = {
+            conversationId: currentConversationId, // Use it here
             sender: decodeURIComponent(username),
             message: messageText
         };
 
         socket.send(JSON.stringify(messageData));
         messageInput.value = '';
+    } else {
+        console.warn('No conversation selected or message is empty.');
     }
 }
 
+
 // Function to select a conversation and load its messages
 function selectConversation(conversationId, conversationUsername) {
-    // Update the active chat name in the UI
+    currentConversationId = conversationId; // Set the global variable
     document.getElementById('activeChatName').innerText = conversationUsername;
 
     // Clear the chat window
