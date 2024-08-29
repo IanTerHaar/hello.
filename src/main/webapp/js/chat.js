@@ -41,3 +41,25 @@ function sendMessage() {
         messageInput.value = '';
     }
 }
+
+// Function to select a conversation and load its messages
+function selectConversation(conversationId, conversationUsername) {
+    // Update the active chat name in the UI
+    document.getElementById('activeChatName').innerText = conversationUsername;
+
+    // Clear the chat window
+    let chatWindow = document.getElementById("chatWindow");
+    chatWindow.innerHTML = '';
+
+    // Make an AJAX request to load the conversation messages
+    fetch(`chat?conversationId=${conversationId}`)
+        .then(response => response.json())
+        .then(messages => {
+            messages.forEach(message => {
+                let messageElement = document.createElement("div");
+                messageElement.className = message.sender === chatUsername ? 'message sent' : 'message received';
+                messageElement.innerHTML = `<p>${message.message}</p><span class="sender">${message.sender}</span>`;
+                chatWindow.appendChild(messageElement);
+            });
+        });
+}

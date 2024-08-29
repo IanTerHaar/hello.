@@ -54,7 +54,7 @@ public class ConversationsServlet extends HttpServlet {
                     int userId = rs.getInt("id");
                     logger.info("User ID for " + loggedInUser + ": " + userId);
 
-                    String query = "SELECT DISTINCT u.username FROM users u " +
+                    String query = "SELECT DISTINCT c.id, u.username FROM users u " +
                             "JOIN conversations c ON (u.id = c.sender_id OR u.id = c.receiver_id) " +
                             "WHERE (c.sender_id = ? OR c.receiver_id = ?) AND u.id != ?";
                     PreparedStatement stmt = connection.prepareStatement(query);
@@ -63,15 +63,17 @@ public class ConversationsServlet extends HttpServlet {
                     stmt.setInt(3, userId);
 
                     ResultSet conversationResults = stmt.executeQuery();
-                    List<String> participants = new ArrayList<>();
+                    List<Conversation> conversations = new ArrayList<>();
 
                     while (conversationResults.next()) {
-                        participants.add(conversationResults.getString("username"));
+                        int conversationId = conversationResults.getInt("id");
+                        String participantUsername = conversationResults.getString("username");
+                        conversations.add(new Conversation(conversationId, participantUsername));
                     }
 
-                    logger.info("Conversations participants fetched: " + participants);
+                    logger.info("Conversations participants fetched: " + conversations);
 
-                    request.setAttribute("conversations", participants);
+                    request.setAttribute("conversations", conversations);
                     stmt.close();
 
                     request.getRequestDispatcher("/home.jsp").forward(request, response);

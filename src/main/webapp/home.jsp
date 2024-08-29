@@ -9,11 +9,9 @@
     <link rel="stylesheet" href="assets/styles/home.css">
     <link rel="icon" href="assets/images/favIcon_raw.png" type="image/png">
 
-    <!-- Pass the username from JSP to JavaScript -->
     <script type="text/javascript">
         var chatUsername = '<%= session.getAttribute("username") %>';
     </script>
-    <!-- Include the external JavaScript file -->
     <script src="js/chat.js"></script>
 </head>
 <body>
@@ -28,8 +26,9 @@
                 <!-- Loop through the list of conversations and display each one -->
                 <c:if test="${not empty conversations}">
                     <c:forEach var="conversation" items="${conversations}">
-                        <div class="conversation-item">
-                                ${conversation}
+                        <!-- The conversation item includes data attributes to store conversation details -->
+                        <div class="conversation-item" onclick="selectConversation(${conversation.id}, '${conversation.username}')">
+                                ${conversation.username}
                         </div>
                     </c:forEach>
                 </c:if>
