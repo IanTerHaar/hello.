@@ -7,6 +7,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,67 +41,44 @@ public class ChatServlet extends HttpServlet {
         HttpSession session = request.getSession(false);
         if (session != null && session.getAttribute("username") != null) {
             String loggedInUser = (String) session.getAttribute("username");
-            String otherUser = request.getParameter("otherUser");
+            String conversationId = request.getParameter("conversationId");
 
-            if (otherUser == null) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No user specified");
+            if (conversationId == null) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No conversation specified");
                 return;
             }
-
-            logger.info("Logged in user: " + loggedInUser);
-            logger.info("Other user: " + otherUser);
 
             try (Connection connection = getConnection()) {
                 logger.info("Database connection established.");
 
-                // Fetching conversation ID
-                String conversationQuery = "SELECT id FROM conversations WHERE (sender_id = (SELECT id FROM users WHERE username = ?) AND receiver_id = (SELECT id FROM users WHERE username = ?)) OR (sender_id = (SELECT id FROM users WHERE username = ?) AND receiver_id = (SELECT id FROM users WHERE username = ?))";
-                PreparedStatement conversationStmt = connection.prepareStatement(conversationQuery);
-                conversationStmt.setString(1, loggedInUser);
-                conversationStmt.setString(2, otherUser);
-                conversationStmt.setString(3, otherUser);
-                conversationStmt.setString(4, loggedInUser);
-                ResultSet rs = conversationStmt.executeQuery();
+                // Adjusted SQL query to use aliases for clarity
+                String messagesQuery = "SELECT u.username AS sender_username, m.message AS message_content, m.timestamp AS message_timestamp " +
+                        "FROM messages m " +
+                        "JOIN users u ON m.sender_id = u.id " +
+                        "WHERE m.conversation_id = ? " +
+                        "ORDER BY m.timestamp ASC";
 
-                int conversationId = -1;
-                if (rs.next()) {
-                    conversationId = rs.getInt("id");
-                }
-
-                // If no conversation exists, create a new one
-                if (conversationId == -1) {
-                    String insertConversationQuery = "INSERT INTO conversations (sender_id, receiver_id, created_at) VALUES ((SELECT id FROM users WHERE username = ?), (SELECT id FROM users WHERE username = ?), CURRENT_TIMESTAMP) RETURNING id";
-                    PreparedStatement insertConversationStmt = connection.prepareStatement(insertConversationQuery);
-                    insertConversationStmt.setString(1, loggedInUser);
-                    insertConversationStmt.setString(2, otherUser);
-                    ResultSet insertRs = insertConversationStmt.executeQuery();
-                    if (insertRs.next()) {
-                        conversationId = insertRs.getInt("id");
-                    }
-                    insertRs.close();
-                    insertConversationStmt.close();
-                }
-
-                // Fetch chat history
-                String messagesQuery = "SELECT sender_id, message, created_at FROM messages WHERE conversation_id = ?";
                 PreparedStatement messagesStmt = connection.prepareStatement(messagesQuery);
-                messagesStmt.setInt(1, conversationId);
+                messagesStmt.setInt(1, Integer.parseInt(conversationId));
                 ResultSet messagesRs = messagesStmt.executeQuery();
 
                 List<Message> messages = new ArrayList<>();
                 while (messagesRs.next()) {
-                    String senderId = messagesRs.getString("sender_id");
-                    String messageContent = messagesRs.getString("message");
-                    Timestamp timestamp = messagesRs.getTimestamp("created_at");
-                    messages.add(new Message(senderId, messageContent, timestamp));
+                    Message message = new Message(
+                            Integer.parseInt(conversationId),
+                            messagesRs.getString("sender_username"),
+                            messagesRs.getString("message_content"),
+                            messagesRs.getTimestamp("message_timestamp")
+                    );
+                    messages.add(message);
                 }
 
-                request.setAttribute("messages", messages);
-                request.getRequestDispatcher("/home.jsp").forward(request, response);
+                response.setContentType("application/json");
+                PrintWriter out = response.getWriter();
+                out.println(toJson(messages));
 
                 messagesRs.close();
                 messagesStmt.close();
-                conversationStmt.close();
 
             } catch (SQLException e) {
                 logger.severe("SQL Exception: " + e.getMessage());
@@ -110,5 +88,19 @@ public class ChatServlet extends HttpServlet {
             logger.warning("Session or username not found. Redirecting to login.");
             response.sendRedirect("login.html");
         }
+    }
+
+    private String toJson(List<Message> messages) {
+        StringBuilder json = new StringBuilder("[");
+        for (int i = 0; i < messages.size(); i++) {
+            Message msg = messages.get(i);
+            json.append("{")
+                    .append("\"sender\":\"").append(msg.getSender()).append("\",")
+                    .append("\"message\":\"").append(msg.getMessage()).append("\",")
+                    .append("\"timestamp\":\"").append(msg.getTimestamp()).append("\"}")
+                    .append(i < messages.size() - 1 ? "," : "");
+        }
+        json.append("]");
+        return json.toString();
     }
 }
