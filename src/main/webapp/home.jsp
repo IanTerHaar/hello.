@@ -1,12 +1,10 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
-<%@ page isELIgnored="false" %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>hello.</title>
+    <title>Chat Application</title>
     <link rel="stylesheet" href="assets/styles/home.css">
     <link rel="icon" href="assets/images/favIcon_raw.png" type="image/png">
 </head>
@@ -18,24 +16,7 @@
 
     <div class="chat-content">
         <aside class="sidebar">
-            <div class="conversation-list">
-
-                <c:set var="conversationList" value="${conversations}" />
-
-                <c:if test="${not empty conversations}">
-                    <c:forEach var="conversation" items="${conversations}">
-                        <div class="conversation-item">${conversation}</div>
-                    </c:forEach>
-                </c:if>
-                <c:if test="${empty conversations}">
-                    <p>No conversations found.</p>
-                </c:if>
-
-<%--            <c:forEach var="conversation" items="${['Alice', 'Bob', 'Charlie']}">--%>
-<%--                <div class="conversation-item">${conversation}</div>--%>
-<%--            </c:forEach>--%>
-
-            </div>
+            <!-- Sidebar content -->
         </aside>
 
         <section class="main-chat">
@@ -55,33 +36,51 @@
     </div>
 </div>
 
-<script>
-    let socket = new WebSocket("ws://localhost:8080/chat-app/chat");
+<script type="text/javascript">
+    // This code is evaluated by the server before being sent to the client
+    const username = encodeURIComponent('<%= session.getAttribute("username") %>');
+    let socket = new WebSocket(`ws://${window.location.host}/chat/${username}`);
 
+    // Handle incoming WebSocket messages
     socket.onmessage = function(event) {
+        let messageData = JSON.parse(event.data);
         let chatWindow = document.getElementById("chatWindow");
+
         let message = document.createElement("div");
-        message.className = 'message received';
-        message.innerHTML = `<p>${event.data}</p><span class="sender">Other</span>`;
+        message.className = messageData.sender === decodeURIComponent(username) ? 'message sent' : 'message received';
+        message.innerHTML = `<p>${messageData.message}</p><span class="sender">${messageData.sender}</span>`;
+
         chatWindow.appendChild(message);
+    };
+
+
+    socket.onopen = function(event) {
+        console.log('WebSocket connection opened for user: ' + decodeURIComponent(username));
+    };
+
+    socket.onerror = function(event) {
+        console.error('WebSocket error:', event);
+    };
+
+    socket.onclose = function(event) {
+        console.log('WebSocket connection closed');
     };
 
     function sendMessage() {
         const messageInput = document.getElementById('messageInput');
         const messageText = messageInput.value;
-        const username = '<%= session.getAttribute("userName") %>';
 
         if (messageText.trim()) {
-            const chatWindow = document.getElementById('chatWindow');
-            const newMessage = document.createElement('div');
-            newMessage.className = 'message sent';
-            newMessage.innerHTML = `<p>${messageText}</p><span class="sender">${username}</span>`;
-            chatWindow.appendChild(newMessage);
-            messageInput.value = ''; // Clear input field
+            let messageData = {
+                sender: decodeURIComponent(username),
+                message: messageText
+            };
 
-            socket.send(messageText);
+            socket.send(JSON.stringify(messageData));
+            messageInput.value = '';
         }
     }
 </script>
+
 </body>
 </html>
